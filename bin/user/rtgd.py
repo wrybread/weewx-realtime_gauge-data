@@ -378,11 +378,16 @@ class RealtimeGaugeData(StdService):
         # initialize my superclass
         super(RealtimeGaugeData, self).__init__(engine, config_dict)
 
-        self.queue = Queue.Queue()
+        self.rtgd_queue = Queue.Queue()
+        if hasattr(self.engine, 'rsync_queue'):
+            self.rsync_queue = self.engine.rsync_queue
+        else:
+            self.rsync_queue = None
         manager_dict = weewx.manager.get_manager_dict_from_config(config_dict,
                                                                   'wx_binding')
         self.db_manager = weewx.manager.open_manager(manager_dict)
-        self.loop_thread = RealtimeGaugeDataThread(self.queue,
+        self.loop_thread = RealtimeGaugeDataThread(self.rtgd_queue,
+                                                   self.rsync_queue,
                                                    config_dict,
                                                    manager_dict,
                                                    latitude=engine.stn_info.latitude_f,
@@ -394,22 +399,22 @@ class RealtimeGaugeData(StdService):
         self.bind(weewx.END_ARCHIVE_PERIOD, self.end_archive_period)
 
     def new_loop_packet(self, event):
-        """Puts new loop packets in the queue."""
+        """Puts new loop packets in the rtgd queue."""
 
         # self.cached_values.update(event.packet, event.packet['dateTime'])
         # logdbg("rtgd", "cached packet: %s" % self.cached_values.get_packet(event.packet['dateTime']))
-        # self.queue.put(self.cached_values.get_packet(event.packet['dateTime']))
+        # self.rtgd_queue.put(self.cached_values.get_packet(event.packet['dateTime']))
         _package = {'type': 'loop',
                     'payload': event.packet}
-        self.queue.put(_package)
+        self.rtgd_queue.put(_package)
         logdbg2("rtgd", "queued loop packet: %s" %  _package['payload'])
 
     def new_archive_record(self, event):
-        """Puts archive records in the queue."""
+        """Puts archive records in the rtgd queue."""
 
         _package = {'type': 'archive',
                     'payload': event.record}
-        self.queue.put(_package)
+        self.rtgd_queue.put(_package)
         logdbg2("rtgd", "queued archive record: %s" %  _package['payload'])
         # get alltime min max baro and put in the queue
         # get the min and max values (incl usUnits)
@@ -418,24 +423,24 @@ class RealtimeGaugeData(StdService):
         if _minmax_baro:
             _package = {'type': 'stats',
                         'payload': _minmax_baro}
-            self.queue.put(_package)
+            self.rtgd_queue.put(_package)
             logdbg2("rtgd", "queued min/max barometer values: %s" %  _package['payload'])
 
     def end_archive_period(self, event):
-        """Puts END_ARCHIVE_PERIOD event in the queue."""
+        """Puts END_ARCHIVE_PERIOD event in the rtgd queue."""
 
         _package = {'type': 'event',
                     'payload': weewx.END_ARCHIVE_PERIOD}
-        self.queue.put(_package)
+        self.rtgd_queue.put(_package)
         logdbg2("rtgd", "queued weewx.END_ARCHIVE_PERIOD event")
 
     def shutDown(self):
         """Shut down any threads."""
 
         if hasattr(self, 'loop_queue') and hasattr(self, 'loop_thread'):
-            if self.queue and self.loop_thread.isAlive():
-                # Put a None in the queue to signal the thread to shutdown
-                self.queue.put(None)
+            if self.rtgd_queue and self.loop_thread.isAlive():
+                # Put a None in the rtgd queue to signal the thread to shutdown
+                self.rtgd_queue.put(None)
                 # Wait up to 20 seconds for the thread to exit:
                 self.loop_thread.join(20.0)
                 if self.loop_thread.isAlive():
@@ -469,13 +474,14 @@ class RealtimeGaugeData(StdService):
 class RealtimeGaugeDataThread(threading.Thread):
     """Thread that generates gauge-data.txt in near realtime."""
 
-    def __init__(self, queue, config_dict, manager_dict,
+    def __init__(self, rtgd_queue, rsync_queue, config_dict, manager_dict,
                  latitude, longitude, altitude):
         # Initialize my superclass:
         threading.Thread.__init__(self)
 
         self.setDaemon(True)
-        self.queue = queue
+        self.rtgd_queue = rtgd_queue
+        self.rsync_queue = rsync_queue
         self.config_dict = config_dict
         self.manager_dict = manager_dict
 
@@ -643,11 +649,11 @@ class RealtimeGaugeDataThread(threading.Thread):
 
 
     def run(self):
-        """Collect packets from the queue and manage their processing.
+        """Collect packets from the rtgd queue and manage their processing.
 
         Now that we are in a thread get a manager for our db so we can
         initialise our forecast and day stats. Once this is done we wait for
-        something in the queue.
+        something in the rtgd queue.
         """
 
         # get a db manager
@@ -665,11 +671,11 @@ class RealtimeGaugeDataThread(threading.Thread):
                                   self.wr_points)
         logdbg2("rtgdthread", "windrose data calculated")
 
-        # now run a continuous loop, waiting for records to appear in the queue
-        # then processing them.
+        # now run a continuous loop, waiting for records to appear in the rtgd
+        # queue then processing them.
         while True:
             while True:
-                _package = self.queue.get()
+                _package = self.rtgd_queue.get()
                 # a None record is our signal to exit
                 if _package is None:
                     return
@@ -694,9 +700,9 @@ class RealtimeGaugeDataThread(threading.Thread):
                     self.process_stats(_package['payload'])
                     logdbg2("rtgdthread", "processed stats package")
                     continue
-                # if packets have backed up in the queue, trim it until it's no
+                # if packets have backed up in the rtgd queue, trim it until it's no
                 # bigger than the max allowed backlog
-                if self.queue.qsize() <= 5:
+                if self.rtgd_queue.qsize() <= 5:
                     break
 
             # we now have a packet to process, wrap in a try..except so we can
@@ -736,6 +742,9 @@ class RealtimeGaugeDataThread(threading.Thread):
                 self.write_data(data)
                 # set our write time
                 self.last_write = time.time()
+                # if there is an rsync queue then put our file in there for transfer
+                if self.rsync_queue is not None:
+                    self.rsync_queue.put(self.rtgd_path_file)
                 # log the generation
                 logdbg("rtgdthread",
                        "packet (%s) gauge-data.txt generated in %.5f seconds" % (packet['dateTime'],
