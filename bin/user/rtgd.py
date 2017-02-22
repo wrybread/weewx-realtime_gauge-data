@@ -440,7 +440,7 @@ class RealtimeGaugeData(StdService):
         manager_dict = weewx.manager.get_manager_dict_from_config(config_dict,
                                                                   'wx_binding')
         self.db_manager = weewx.manager.open_manager(manager_dict)
-        self.loop_thread = RealtimeGaugeDataThread(self.rtgd_queue,
+        self.rtgd_thread = RealtimeGaugeDataThread(self.rtgd_queue,
                                                    self.rsync_queue,
                                                    config_dict,
                                                    manager_dict,
