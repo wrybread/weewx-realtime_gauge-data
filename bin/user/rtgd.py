@@ -17,12 +17,15 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see http://www.gnu.org/licenses/.
 #
-# Version: 0.2.9                                      Date: 7 March 2017
+# Version: 0.2.10                                     Date: 17 March 2017
 #
 # Revision History
-#  7 March 2017         v0.2.9  - Reworked ten minute gust calculation to fix
+#  17 March 2017        v0.2.10 - now supports reading scroller text from a
+#                                 text file specified by the scroller_text
+#                                 config option in [RealtimeGaugeData]
+#  7 March 2017         v0.2.9  - reworked ten minute gust calculation to fix
 #                                 problem where red gust 'wedge' would
-#                                 occassionally temporarily disappear from wind
+#                                 occasionally temporarily disappear from wind
 #                                 speed gauge
 #  28 February 2017     v0.2.8  - Reworked day max/min calculations to better
 #                                 handle missing historical data. If historical
@@ -142,9 +145,14 @@ https://github.com/mcrossley/SteelSeries-Weather-Gauges/tree/master/weather_serv
     # Binding to use for appTemp data. Optional, default 'wx_binding'.
     apptemp_binding = wx_binding
 
-    # Text to display on the scroller. Optional, if omitted then forecast text
-    # is displayed if available.
+    # Text to display on the scroller. Must be enclosed in quotes if spaces
+    # included. Optional.
     scroller_text = 'some text'
+
+    # File to use as source for the scroller text. File must be a text file,
+    # first line only of file is read. Only used if scroller_text is blank or
+    # omitted. Optional.
+    scroller_file = /var/tmp/scroller.txt
 
     # Update windrun value each loop period or just on each archive period.
     # Optional, default is False.
@@ -157,7 +165,6 @@ https://github.com/mcrossley/SteelSeries-Weather-Gauges/tree/master/weather_serv
 
     # Post the data to a remote PHP script? Comment out or set false if not used.
     remote_server_url = None
-
 
     # Parameters used in/required by rtgd calculations
     [[Calculate]]
@@ -268,102 +275,6 @@ Handy things/conditions noted from analysis of SteelSeries Weather Gauges:
       and gauges.js
 """
 
-
-'''
-
-The variable names as saved to the text file:
-
-              "temp":"$current.outTemp.raw",
-
-           "wlatest":"$current.windSpeed.raw",
-
-
-         "timeUTC":"$timeutc",
-*             "date":"$current.dateTime.format('%Y.%m.%d %H:%M')",
-        "dateFormat":"y.m.d h:m",
- "SensorContactLost":"$sensorContactLost",
-          "tempunit":"$UOM_temp",
-          "windunit":"$UOM_wind",
-         "pressunit":"$UOM_bar",
-          "rainunit":"$UOM_rain",
-       "windrununit":"$windrununit",
-     "cloudbaseunit":"ft",
-*             "temp":"$current.outTemp.raw",
-            "tempTL":"$day.outTemp.min.raw",
-            "tempTH":"$day.outTemp.max.raw",
-           "TtempTL":"$day.outTemp.mintime",
-           "TtempTH":"$day.outTemp.maxtime",
-         "temptrend":"$t_trend",
-            "intemp":"$current.inTemp.raw",
-               "hum":"$current.outHumidity.raw",
-             "humTL":"$day.outHumidity.min.raw",
-             "humTH":"$day.outHumidity.max.raw",
-            "ThumTL":"$day.outHumidity.mintime",
-            "ThumTH":"$day.outHumidity.maxtime",
-             "inhum":"$current.inHumidity.raw",
-               "dew":"$current.dewpoint.raw",
-        "dewpointTL":"$day.dewpoint.min.raw",
-        "dewpointTH":"$day.dewpoint.max.raw",
-       "TdewpointTL":"$day.dewpoint.mintime",
-       "TdewpointTH":"$day.dewpoint.maxtime",
-            "wchill":"$current.windchill.raw",
-          "wchillTL":"$day.windchill.min.raw",
-         "TwchillTL":"$day.windchill.mintime",
-         "heatindex":"$current.heatindex.raw",
-       "heatindexTH":"$day.heatindex.max.raw",
-      "TheatindexTH":"$day.heatindex.maxtime",
-           "apptemp":"$apptemp",
-         "apptempTL":"0",
-         "apptempTH":"0",
-        "TapptempTL":"",
-        "TapptempTH":"",
-           "humidex":"$humidex",
-             "press":"$current.barometer.raw",
-            "pressL":"$year.barometer.min.raw",
-            "pressH":"$year.barometer.max.raw",
-           "pressTL":"$day.barometer.min.raw",
-           "pressTH":"$day.barometer.max.raw",
-          "TpressTL":"$day.barometer.mintime",
-          "TpressTH":"$day.barometer.maxtime",
-     "presstrendval":"$p_trend",
-             "rfall":"$day_rain",
-             "rrate":"$current_rainrate",
-           "rrateTM":"$day_rainrate_max",
-          "TrrateTM":"$day.rainRate.maxtime",
-      "hourlyrainTH":"$hourlyrainTH",
-     "ThourlyrainTH":"$ThourlyrainTH",
-    "LastRainTipISO":"2000-01-01 00:00",
-*          "wlatest":"$current.windSpeed.raw",
-            "wspeed":"$hour.windSpeed.avg.raw",
-            "windTM":"$day.windGust.max.raw",
-*            "wgust":"$current.windGust.raw",
-           "wgustTM":"$hour.windGust.max.raw",
-          "TwgustTM":"$day.windGust.maxtime",
-*          "bearing":"$current.windDir.raw",
-        "avgbearing":"$day.wind.vecdir.raw",
-         "bearingTM":"$day.wind.gustdir.raw",
-"BearingRangeFrom10":"000",
-  "BearingRangeTo10":"000",
-        "domwinddir":"$day.wind.vecdir.ordinal_compass",
-      "WindRoseData":[],
-           "windrun":"$windrun",
-         "Tbeaufort":"F$beaufort",
-                "UV":"$current.UV",
-              "UVTH":"$day.UV.max.raw",
-          "SolarRad":"$current.radiation.raw",
-           "SolarTM":"$day.radiation.max.raw",
-   "CurrentSolarMax":"$solarMax",
-    "cloudbasevalue":"$cloudbase",
-          "forecast":"$fc",
-           "version":"$station.version",
-             "build":"",
-               "ver":"13"
-
-
-
-'''
-
-
 # python imports
 import Queue
 import datetime
@@ -373,7 +284,6 @@ import os.path
 import syslog
 import threading
 import time
-import urllib
 
 # weeWX imports
 import weedb
@@ -391,8 +301,8 @@ RTGD_VERSION = '0.2.7'
 GAUGE_DATA_VERSION = '13'
 
 # ordinal compass points supported
-COMPASS_POINTS = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
-                  'S','SSW','SW','WSW','W','WNW','NW','NNW','N']
+COMPASS_POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                  'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N']
 
 # map weeWX unit names to unit names supported by the SteelSeries Weather
 # Gauges
@@ -660,7 +570,6 @@ class RealtimeGaugeDataThread(threading.Thread):
         # Initialize my superclass:
         threading.Thread.__init__(self)
 
-
         self.setDaemon(True)
         self.rtgd_queue = queue
         self.config_dict = config_dict
@@ -672,7 +581,6 @@ class RealtimeGaugeDataThread(threading.Thread):
         # setup file generation timing
         self.min_interval = rtgd_config_dict.get('min_interval', None)
         self.last_write = 0 # ts (actual) of last generation
-
 
         # get our file paths and names
         _path = rtgd_config_dict.get('rtgd_path', '/var/tmp')
@@ -686,6 +594,12 @@ class RealtimeGaugeDataThread(threading.Thread):
 
         # get scroller text if there is any
         self.scroller_text = rtgd_config_dict.get('scroller_text', None)
+        if self.scroller_text is not None and self.scroller_text.strip() == '':
+            self.scroller_text = None
+        # get scroller file if specified, check it refers to a file
+        self.scroller_file = rtgd_config_dict.get('scroller_file', None)
+        if self.scroller_file is not None and not os.path.isfile(self.scroller_file):
+            self.scroller_file = None
 
         # get windrose settings
         try:
@@ -786,9 +700,8 @@ class RealtimeGaugeDataThread(threading.Thread):
         # get max cache age
         self.max_cache_age = rtgd_config_dict.get('max_cache_age', 600)
 
-        # get the remote server URL. %%
+        # get the remote server URL.
         self.remote_server_url = rtgd_config_dict.get('remote_server_url', None)
-
 
         # initialise last wind directions for use when respective direction is
         # None. We need latest and average
@@ -825,8 +738,6 @@ class RealtimeGaugeDataThread(threading.Thread):
         self.longitude = longitude
         self.altitude_m = altitude
         self.station_type = config_dict['Station']['station_type']
-
-        
 
         # gauge-data.txt version
         self.version = str(GAUGE_DATA_VERSION)
@@ -929,16 +840,12 @@ class RealtimeGaugeDataThread(threading.Thread):
                 if self.rtgd_queue.qsize() <= 5:
                     break
 
-            
             # we now have a packet to process, wrap in a try..except so we can
             # catch any errors
             try:
                 logdbg2("rtgdthread",
                         "received packet: %s" % _package['payload'])
                 self.process_packet(_package['payload'])
-
-                #%%
-                
             except Exception, e:
                 # Some unknown exception occurred. This is probably a serious
                 # problem. Exit.
@@ -983,8 +890,6 @@ class RealtimeGaugeDataThread(threading.Thread):
             except Exception, e:
                 weeutil.weeutil.log_traceback('rtgdthread: **** ')
 
-
-
             # post the data to a remote URL, for access outside the network
             try:
 
@@ -1002,12 +907,9 @@ class RealtimeGaugeDataThread(threading.Thread):
             except Exception, e:
                 weeutil.weeutil.log_traceback('rtgdthread: **** Error posting data to remote server: ')
 
-
-
         else:
             # we skipped this packet so log it
             logdbg("rtgdthread", "packet (%s) skipped" % packet['dateTime'])
-
 
     def process_stats(self, package):
         """Process a stats package.
@@ -1033,7 +935,35 @@ class RealtimeGaugeDataThread(threading.Thread):
 
         with open(self.rtgd_path_file, 'w') as f:
             json.dump(data, f)
-            f.close()
+
+    def get_scroller_text(self):
+        """Obtain the text string to be used in the scroller.
+
+        Scroller text may come from any one of four sources, each is checked in
+        the following order and the first non-zero length string result found
+        is used:
+        - string in weewx.conf [RealtimeGaugeData]
+        - string in a text file
+        - a field in a database
+        - Zambretti forecast
+
+        If nothing is found then a zero length string is returned.
+        """
+
+        # first look for a string in weewx.conf
+        if self.scroller_text is not None:
+            _scroller = self.scroller_text
+        # if nothign then look for a file
+        elif self.scroller_file is not None:
+            with open(self.scroller_file, 'r') as f:
+                _scroller = f.readline().strip()
+        # if nothing look for a Zambretti forecast
+        elif self.forecast.is_installed():
+            _scroller = self.forecast.get_zambretti_text()
+        # finally there is nothing so return a 0 length string
+        else:
+            _scroller = ''
+        return _scroller
 
     def calculate(self, packet):
         """Construct a data dict for gauge-data.txt.
@@ -1086,7 +1016,7 @@ class RealtimeGaugeDataThread(threading.Thread):
                              self.p_temp_type,
                              self.p_temp_group)
         temp = convert(temp_vt, self.temp_group).value
-        temp = temp if temp is not None else convert(ValueTuple(0.0,'degree_C','group_temperature'),
+        temp = temp if temp is not None else convert(ValueTuple(0.0, 'degree_C', 'group_temperature'),
                                                      self.temp_group).value
         data['temp'] = self.temp_format % temp
         # tempTL - today's low temperature
@@ -1608,12 +1538,7 @@ class RealtimeGaugeDataThread(threading.Thread):
         cloudbase = cloudbase if cloudbase is not None else 0.0
         data['cloudbasevalue'] = self.alt_format % cloudbase
         # forecast - forecast text
-        # if we have any scroller text set then display that otherwise use the
-        # Zambretti text
-        if self.scroller_text is not None:
-            data['forecast'] = self.scroller_text
-        else:
-            data['forecast'] = self.forecast.get_zambretti_text()
+        data['forecast'] = self.get_scroller_text()
         # version - weather software version
         data['version'] = '%s' % weewx.__version__
         # build -
