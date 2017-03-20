@@ -3,6 +3,18 @@ SteelSeries Weather Gauges by weeWX. The extension consists of a weeWX service
 that generates the file gauge-data.txt used to update the SteelSeries Weather
 Gauges.
 
+This fork adds the ability to post the data file (live_data.json) to a remote
+webserver. New features:
+
+- upload the PHP script to your website. For these instructions, suppose
+you uploaded it to http://yourwebsite.com/weather/receive_conditions.php
+
+- in your weewx config file, set the value of "remote_server_url" to the URL of
+the PHP script packaged here. For example:
+
+remote_server_url = http://yourwebsite.com/weather/receive_conditions.php
+
+
 Pre-Requisites
 
 The Realtime gauge-data extension requires weeWX v3.4.0 or greater.
