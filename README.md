@@ -4,6 +4,18 @@
 
 The *Realtime gauge-data* extension generates a loop data based *gauge-data.txt* file that provides for near realtime updating of the [SteelSeries Weather Gauges](https://github.com/mcrossley/SteelSeries-Weather-Gauges "SteelSeries Weather Gauges on GitHub") by weeWX.
 
+This fork adds the ability to post the data file (live_data.json) to a remote
+webserver. New features:
+
+- upload the PHP script to your website. For these instructions, suppose
+you uploaded it to http://yourwebsite.com/weather/receive_conditions.php
+
+- in your weewx config file, set the value of "remote_server_url" to the URL of
+the PHP script packaged here. For example:
+
+remote_server_url = http://yourwebsite.com/weather/receive_conditions.php
+
+
 ## Pre-requisites ##
 
 The *Realtime gauge-data* extension requires weeWX v3.4.0 or greater. Use of the *Realtime gauge-data* extension with the [SteelSeries Weather Gauges](https://github.com/mcrossley/SteelSeries-Weather-Gauges "SteelSeries Weather Gauges on GitHub") requires the installation and configuration for use with weeWX of the [SteelSeries Weather Gauges](https://github.com/mcrossley/SteelSeries-Weather-Gauges "SteelSeries Weather Gauges on GitHub").
