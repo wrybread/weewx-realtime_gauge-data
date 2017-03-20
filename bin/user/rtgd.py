@@ -284,6 +284,7 @@ import os.path
 import syslog
 import threading
 import time
+import urllib
 
 # weeWX imports
 import weedb
@@ -900,7 +901,7 @@ class RealtimeGaugeDataThread(threading.Thread):
 
                     # remote website
                     url = "%s?%s)" % (self.remote_server_url, data_query_string)
-                    #print url
+                    #print url 
                     response = urllib.urlopen(url)
                     #print response.read()
 
