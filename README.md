@@ -4,17 +4,15 @@
 
 The *Realtime gauge-data* extension generates a loop data based *gauge-data.txt* file that provides for near realtime updating of the [SteelSeries Weather Gauges](https://github.com/mcrossley/SteelSeries-Weather-Gauges "SteelSeries Weather Gauges on GitHub") by weeWX.
 
-This fork adds the ability to post the data file (live_data.json) to a remote
-webserver. New features:
+This fork adds the ability to post the data file (live_data.json) to a remote webserver. To use:
 
-- upload the PHP script to your website. For these instructions, suppose
-you uploaded it to http://yourwebsite.com/weather/receive_conditions.php
+- upload the PHP script to your website. For these instructions, suppose you uploaded it to http://yourwebsite.com/weather/receive_conditions.php
 
-- in your weewx config file, set the value of "remote_server_url" to the URL of
-the PHP script packaged here. For example:
+- in your weewx config file, set the value of "remote_server_url" to the URL of the PHP script packaged here. For example:
 
 remote_server_url = http://yourwebsite.com/weather/receive_conditions.php
 
+rtgd.py will then send the data that it usually writes locally to live_data.json to your webserver using a GET statement (so no FTP or rSYNC necessary).
 
 ## Pre-requisites ##
 
